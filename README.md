@@ -9,7 +9,6 @@ A modern, self-hosted Pharmacy Management System designed for single-user/indepe
 The project is structured into two main components:
 1. **`/Backend`**: The FastAPI application serving REST endpoints, database schemas (via SQLAlchemy), authentication, and business logic.
 2. **`/flutter_pharmacy`**: The Flutter frontend application providing a clean user experience for point-of-sale (POS), inventory management, and customer/prescription tracking.
-3. **`/SQL`**: Database indexing strategy, triggers, and migrations documentation.
 
 ---
 
