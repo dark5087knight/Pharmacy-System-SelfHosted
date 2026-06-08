@@ -69,7 +69,7 @@ If you want to run the backend without Docker (directly on your host system):
    ```
 
 4. **Configuration Settings:**
-   The `config.yaml` files are used to manage configurations (instead of `.env` files) and are already tracked and present in both the `Backend/` and `flutter_pharmacy/` directories. You can inspect or modify the Backend configuration inside the `Backend/config.yaml` file:
+   The `config.yaml` files are used to manage configurations and are already tracked and present in both the `Backend/` and `flutter_pharmacy/` directories. These files contain **ready-to-use default configurations** that work out of the box, but they can be inspected and changed by the user if needed (e.g., inside `Backend/config.yaml`):
    ```yaml
    DATABASE_URL: "postgresql+asyncpg://pharmacy:PassWD@localhost:5432/pharmacy"
    JWT_SECRET: "your_super_secret_jwt_key_here"
