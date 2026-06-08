@@ -4,7 +4,7 @@ A modern, self-hosted Pharmacy Management System designed for single-user/indepe
 
 ---
 
-## 🏗️ Project Architecture
+## Project Architecture
 
 The project is structured into two main components:
 1. **`/Backend`**: The FastAPI application serving REST endpoints, database schemas (via SQLAlchemy), authentication, and business logic.
@@ -13,7 +13,7 @@ The project is structured into two main components:
 
 ---
 
-## 🛠️ Prerequisites
+##  Prerequisites
 
 Ensure you have the following installed on your machine:
 * [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Recommended for hosting the backend)

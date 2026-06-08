@@ -43,10 +43,7 @@ venv/
 ENV/
 env/
 
-# Environment Configurations (sensitive credentials)
-.env
-.env.*
-!.env.example
+
 
 # Local SQLite databases
 *.db
