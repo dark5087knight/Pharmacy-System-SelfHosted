@@ -71,7 +71,7 @@ If you want to run the backend without Docker (directly on your host system):
 4. **Configuration Settings:**
    The `config.yaml` files are used to manage configurations (instead of `.env` files) and are already tracked and present in both the `Backend/` and `flutter_pharmacy/` directories. You can inspect or modify the Backend configuration inside the `Backend/config.yaml` file:
    ```yaml
-   DATABASE_URL: "postgresql+asyncpg://dark:writeline@localhost:5432/pharmacysh"
+   DATABASE_URL: "postgresql+asyncpg://pharmacy:PassWD@localhost:5432/pharmacy"
    JWT_SECRET: "your_super_secret_jwt_key_here"
    JWT_ALGORITHM: "HS256"
    ACCESS_TOKEN_EXPIRE_MINUTES: 15
@@ -80,7 +80,7 @@ If you want to run the backend without Docker (directly on your host system):
    ```
 
 5. **Initialize Database & Seed:**
-   Ensure you have a PostgreSQL server running locally, created a database named `pharmacysh` matching your `DATABASE_URL`, and then run the seeder:
+   Ensure you have a PostgreSQL server running locally, created a database named `pharmacy` matching your `DATABASE_URL`, and then run the seeder:
    ```bash
    python scripts/seed.py
    ```

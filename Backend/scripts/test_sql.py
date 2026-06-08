@@ -5,7 +5,7 @@ SQL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "S
 
 def test_sql():
     # Connect directly using the raw engine
-    url = "postgresql://dark:writeline@192.168.0.11:5432/PharmacySH"
+    url = "postgresql://pharmacy:PassWD@127.0.0.1:5432/pharmacy"
     engine = create_engine(url)
     
     for sql_file in ["01_schema.sql", "02_rls_policies.sql", "03_indexes.sql"]:
