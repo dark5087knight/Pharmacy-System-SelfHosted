@@ -342,6 +342,15 @@ class ApiService {
     }
   }
 
+  Future<Medicine?> lookupByBarcode(String code) async {
+    try {
+      final data = await request<Medicine>('medicines/barcode/$code');
+      return data;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // --- CRUD API Mutation Wrappers ---
 
   Future<void> createMedicine(Medicine m) async {

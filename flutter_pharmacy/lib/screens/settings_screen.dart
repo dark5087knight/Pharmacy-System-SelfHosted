@@ -194,35 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
 
-                // System Actions
-                Section(
-                  title: context.tr('settings.operations_pipelines'),
-                  children: Column(
-                    children: [
-                      SwitchListTile(
-                        title: Text(context.tr('settings.cloud_backups'), style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
-                        subtitle: Text(context.tr('settings.cloud_backups_sub'), style: const TextStyle(fontSize: 11)),
-                        value: _autoBackup,
-                        onChanged: (val) => setState(() => _autoBackup = val),
-                      ),
-                      SwitchListTile(
-                        title: Text(context.tr('settings.low_stock'), style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
-                        subtitle: Text(context.tr('settings.low_stock_sub'), style: const TextStyle(fontSize: 11)),
-                        value: _lowStockAlerts,
-                        onChanged: (val) => setState(() => _lowStockAlerts = val),
-                      ),
-                      SwitchListTile(
-                        title: Text(context.tr('settings.licenses'), style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
-                        subtitle: Text(context.tr('settings.licenses_sub'), style: const TextStyle(fontSize: 11)),
-                        value: _prescChecks,
-                        onChanged: (val) => setState(() => _prescChecks = val),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
 
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(

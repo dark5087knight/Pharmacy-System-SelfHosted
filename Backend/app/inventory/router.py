@@ -79,6 +79,24 @@ async def search_medicines(
     return [format_medicine(m) for m in medicines]
 
 
+@router.get("/medicines/barcode/{code}", response_model=MedicineResponse)
+async def lookup_by_barcode(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: Staff = Depends(get_current_user),
+):
+    stmt = (
+        select(Medicine)
+        .filter(Medicine.barcode == code, Medicine.deleted_at == None)
+        .options(selectinload(Medicine.category))
+    )
+    result = await db.execute(stmt)
+    m = result.scalars().first()
+    if not m:
+        raise HTTPException(status_code=404, detail="No medicine found with this barcode.")
+    return format_medicine(m)
+
+
 @router.get("/medicines/{id}", response_model=MedicineResponse)
 async def read_medicine(
     id: str, 
@@ -200,6 +218,16 @@ async def update_medicine(
     
     if not db_med:
         raise HTTPException(status_code=404, detail="Medication not found")
+
+    # Check if SKU or Barcode already registered for another medicine
+    check_stmt = select(Medicine).filter(
+        ((Medicine.sku == m.sku) | (Medicine.barcode == m.barcode)) &
+        (Medicine.id != med_uuid) &
+        (Medicine.deleted_at == None)
+    )
+    check_res = await db.execute(check_stmt)
+    if check_res.scalars().first():
+        raise HTTPException(status_code=400, detail="SKU or Barcode already registered to another medicine.")
 
     # Find or create category
     cat_stmt = select(MedicineCategory).filter(

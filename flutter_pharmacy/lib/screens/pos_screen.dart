@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:pdf/pdf.dart' show PdfPageFormat;
+import 'package:pdf/widgets.dart' as pw;
+import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
+import 'dart:io';
+import 'dart:ui' as ui;
 import '../providers/workspace_provider.dart';
 import '../services/api_service.dart';
 import '../models/models.dart';
@@ -26,6 +32,8 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
   
   // Search query
   String _searchQuery = '';
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
   
   // Active tab on narrow screens
   int _activePosTab = 0;
@@ -38,6 +46,13 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
     super.initState();
     _loadCartWidth();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
   }
 
   void _loadCartWidth() async {
@@ -395,6 +410,38 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
         await _db.addSale(sale);
         await _db.addActivity(event);
         await _loadData(showLoading: false);
+        
+        if (mounted) {
+          final printReceipt = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) {
+              final ac = Theme.of(context).extension<AppColors>()!;
+              return AlertDialog(
+                backgroundColor: ac.surface1,
+                title: const Text('Sale Completed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                content: const Text('Would you like to generate and save the PDF receipt/bill for this sale?', style: TextStyle(fontSize: 12)),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text('Skip', style: TextStyle(color: ac.mutedForeground)),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ac.foreground,
+                      foregroundColor: ac.background,
+                    ),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Generate PDF', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              );
+            }
+          );
+          if (printReceipt == true && mounted) {
+            await _generateReceiptPdf(context, sale);
+          }
+        }
       } catch (e) {
         debugPrint(e.toString());
       }
@@ -511,7 +558,36 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
                   onChanged: (val) => setState(() => _searchQuery = val),
+                  onSubmitted: (val) async {
+                    final code = val.trim();
+                    if (code.isEmpty) return;
+
+                    Medicine? matchedMed;
+                    try {
+                      matchedMed = _medicines.firstWhere((m) => m.barcode == code);
+                    } catch (_) {
+                      matchedMed = await ApiService().lookupByBarcode(code);
+                    }
+
+                    if (matchedMed != null) {
+                      workspace.addToPosCart(matchedMed, context);
+                      _searchController.clear();
+                      setState(() {
+                        _searchQuery = '';
+                      });
+                      _searchFocusNode.requestFocus();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('No medicine found for barcode: $code'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
                   style: const TextStyle(fontSize: 12),
                   decoration: InputDecoration(
                     hintText: context.tr('pos.search_hint'),
@@ -806,7 +882,7 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                 GestureDetector(
                   behavior: HitTestBehavior.translucent,
                   onHorizontalDragUpdate: (details) {
-                    final isRtl = Directionality.of(context) == TextDirection.rtl;
+                    final isRtl = Directionality.of(context) == ui.TextDirection.rtl;
                     final delta = details.delta.dx;
                     Future.microtask(() {
                       if (mounted) {
@@ -966,5 +1042,105 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _generateReceiptPdf(BuildContext context, Sale sale) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final path = await FilePicker.platform.getDirectoryPath();
+      if (path == null) return;
+      
+      final pdf = pw.Document();
+      final df = DateFormat('yyyy-MM-dd HH:mm');
+      
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.roll80,
+          build: (pw.Context context) {
+            return pw.Padding(
+              padding: const pw.EdgeInsets.all(10),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Align(
+                    alignment: pw.Alignment.center,
+                    child: pw.Text('Caduceus Pharmacy', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                  ),
+                  pw.SizedBox(height: 5),
+                  pw.Text('Invoice: ${sale.invoiceNumber}', style: const pw.TextStyle(fontSize: 8)),
+                  pw.Text('Date: ${df.format(DateTime.parse(sale.createdAt))}', style: const pw.TextStyle(fontSize: 8)),
+                  pw.Text('Cashier: ${sale.cashierId}', style: const pw.TextStyle(fontSize: 8)),
+                  pw.Divider(thickness: 0.5),
+                  
+                  // Items Table
+                  pw.TableHelper.fromTextArray(
+                    border: null,
+                    headerStyle: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
+                    cellStyle: const pw.TextStyle(fontSize: 7),
+                    headers: ['Item', 'Qty', 'Price', 'Total'],
+                    data: sale.items.map((it) => [
+                      it.name,
+                      it.quantity.toString(),
+                      '\$${it.unitPrice.toStringAsFixed(2)}',
+                      '\$${(it.quantity * it.unitPrice).toStringAsFixed(2)}',
+                    ]).toList(),
+                  ),
+                  pw.Divider(thickness: 0.5),
+                  
+                  // Totals
+                  pw.Align(
+                    alignment: pw.Alignment.centerRight,
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text('Subtotal: \$${sale.subtotal.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 8)),
+                        pw.Text('Tax: \$${sale.tax.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 8)),
+                        pw.Text('Total: \$${sale.total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(height: 15),
+                  
+                  // Barcode containing invoice number!
+                  pw.Align(
+                    alignment: pw.Alignment.center,
+                    child: pw.Column(
+                      children: [
+                        pw.BarcodeWidget(
+                          data: sale.invoiceNumber,
+                          barcode: pw.Barcode.code128(),
+                          width: 140,
+                          height: 40,
+                        ),
+                        pw.SizedBox(height: 3),
+                        pw.Text(sale.invoiceNumber, style: const pw.TextStyle(fontSize: 7)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+      
+      final fullPath = '$path\\receipt_${sale.invoiceNumber}.pdf';
+      final file = File(fullPath);
+      await file.writeAsBytes(await pdf.save());
+      
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Receipt saved: receipt_${sale.invoiceNumber}.pdf'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Error generating receipt: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

@@ -39,6 +39,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   final _sellPriceController = TextEditingController();
   final _buyPriceController = TextEditingController();
   final _expiryController = TextEditingController();
+  final _barcodeController = TextEditingController();
 
   @override
   void initState() {
@@ -57,6 +58,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     _sellPriceController.dispose();
     _buyPriceController.dispose();
     _expiryController.dispose();
+    _barcodeController.dispose();
     super.dispose();
   }
 
@@ -109,6 +111,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     setState(() {
       _selectedMedicine = null;
       _skuController.text = 'SKU-${(10000 + _medicines.length).toString()}';
+      _barcodeController.text = (990000000000 + _medicines.length).toString();
       _nameController.clear();
       _brandController.clear();
       _categoryController.text = 'Analgesic';
@@ -126,6 +129,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     setState(() {
       _selectedMedicine = m;
       _skuController.text = m.sku;
+      _barcodeController.text = m.barcode;
       _nameController.text = m.name;
       _brandController.text = m.brand;
       _categoryController.text = m.category;
@@ -172,7 +176,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             genericName: _nameController.text,
             brand: _brandController.text,
             category: _categoryController.text,
-            barcode: (990000000000 + _medicines.length).toString(),
+            barcode: _barcodeController.text.trim(),
             sku: _skuController.text,
             batchNumber: 'B2025-001',
             manufactureDate: DateTime.now().toIso8601String(),
@@ -205,6 +209,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           name: _nameController.text,
           brand: _brandController.text,
           category: _categoryController.text,
+          barcode: _barcodeController.text.trim(),
           quantity: qty,
           lowStockThreshold: threshold,
           sellingPrice: sellPrice,
@@ -559,6 +564,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       child: ListView(
                         children: [
                           _buildField(context.tr('inventory.form.sku'), _skuController, enabled: false),
+                          _buildField(context.tr('inventory.form.barcode'), _barcodeController, required: true),
                           if (_selectedMedicine != null)
                             _buildField(context.tr('inventory.form.name'), _nameController, required: true)
                           else
