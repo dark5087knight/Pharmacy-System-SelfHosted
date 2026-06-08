@@ -1,0 +1,143 @@
+# ==========================================
+# Operating System Files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+Desktop.ini
+
+# ==========================================
+# IDEs and Editor Configuration
+# ==========================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*.suo
+*.sln
+*.user
+*.iml
+*.ipr
+*.iws
+
+# ==========================================
+# Python (Backend) Ignores
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.eggs/
+.pytest_cache/
+.cache/
+*.egg-info/
+.tox/
+.coverage
+.coverage.*
+*.log
+
+# Python Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment Configurations (sensitive credentials)
+.env
+.env.*
+!.env.example
+
+# Local SQLite databases
+*.db
+*.sqlite3
+
+# ==========================================
+# Flutter (Frontend) Ignores
+# ==========================================
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+
+# Ephemeral / Platform build files (especially Windows build symlinks)
+**/android/local.properties
+**/android/key.properties
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/macos/Flutter/ephemeral/
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/obj/
+**/bin/
+
+# ==========================================
+# SQL Directory
+# ==========================================
+# Ignore all files in SQL folder except the tracked SQL scripts
+SQL/*
+!SQL/*.sql
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+**/build/
+**/coverage/
+
+# Symbolication related
+**/app.*.symbols
+
+# Obfuscation related
+**/app.*.map.json
+
+# Android Studio will place build artifacts here
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+**/flutter/ephemeral/
+
+# Visual Studio user-specific files.
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio build-related files.
+x64/
+x86/
+
+# Visual Studio cache files
+# files ending in .cache can be ignored
+*.[Cc]ache
+# but keep track of directories ending in .cache
+!*.[Cc]ache/
