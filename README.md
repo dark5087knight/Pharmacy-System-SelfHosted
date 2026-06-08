@@ -68,15 +68,15 @@ If you want to run the backend without Docker (directly on your host system):
    pip install -r requirements.txt
    ```
 
-4. **Set up environment variables:**
-   Create a `.env` file in the `Backend/` root directory (you can copy `.env.example` as a template):
-   ```ini
-   DATABASE_URL=postgresql+asyncpg://dark:writeline@localhost:5432/pharmacysh
-   JWT_SECRET=your_super_secret_jwt_key_here
-   JWT_ALGORITHM=HS256
-   ACCESS_TOKEN_EXPIRE_MINUTES=15
-   REFRESH_TOKEN_EXPIRE_DAYS=7
-   ENV=development
+4. **Configuration Settings:**
+   The `config.yaml` files are used to manage configurations (instead of `.env` files) and are already tracked and present in both the `Backend/` and `flutter_pharmacy/` directories. You can inspect or modify the Backend configuration inside the `Backend/config.yaml` file:
+   ```yaml
+   DATABASE_URL: "postgresql+asyncpg://dark:writeline@localhost:5432/pharmacysh"
+   JWT_SECRET: "your_super_secret_jwt_key_here"
+   JWT_ALGORITHM: "HS256"
+   ACCESS_TOKEN_EXPIRE_MINUTES: 15
+   REFRESH_TOKEN_EXPIRE_DAYS: 7
+   ENV: "development"
    ```
 
 5. **Initialize Database & Seed:**
