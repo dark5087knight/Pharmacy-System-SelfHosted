@@ -73,12 +73,6 @@ build/
 **/bin/
 SQL/
 
-# ==========================================
-# SQL Directory
-# ==========================================
-# Ignore all files in SQL folder except the tracked SQL scripts
-SQL/*
-!SQL/*.sql
 
 # Miscellaneous
 *.class
