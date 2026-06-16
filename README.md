@@ -28,17 +28,28 @@ Ensure you have the following installed on your machine:
 
 The backend runs inside a self-contained Docker container hosting both the **PostgreSQL database** and the **FastAPI application**. The database tables are automatically generated, and a clean admin account is seeded during the build process.
 
-1. **Build the Docker image:**
-   ```bash
-   docker build -t pharmacy .
-   ```
+#### 1. Build and run locally:
+* **Build the Docker image:**
+  ```bash
+  docker build -t pharmacy .
+  ```
+* **Run the Docker container:**
+  ```bash
+  docker run -p 8000:8000 --name pharmacy --rm pharmacy
+  ```
 
-2. **Run the Docker container:**
-   ```bash
-   docker run -p 8000:8000 --name pharmacy --rm pharmacy
-   ```
-   * The REST API will be available at **`http://localhost:8000`**.
-   * Database data is automatically initialized inside the container.
+#### 2. Or pull pre-built image from Docker Hub (Fastest):
+* **Pull the Docker image:**
+  ```bash
+  docker pull dark5087knight/sanare:1.0
+  ```
+* **Run the Docker container:**
+  ```bash
+  docker run -p 8000:8000 --name sanare --rm dark5087knight/sanare:1.0
+  ```
+
+* The REST API will be available at **`http://localhost:8000`**.
+* Database data is automatically initialized inside the container.
 
 ---
 
@@ -94,6 +105,15 @@ If you want to run the backend without Docker (directly on your host system):
 ---
 
 ## 📱 Frontend Setup (Flutter)
+
+### Download Pre-built Windows Release (Recommended)
+You can download the pre-built Windows executable directly from the GitHub releases page:
+👉 **[Download Sanare.exe](https://github.com/dark5087knight/Pharmacy-System-SelfHosted/releases/download/v1.0.0/Sanare.exe)**
+
+---
+
+### Local Development Setup (Source)
+If you want to build or run the client from source:
 
 1. **Navigate to the Flutter project directory:**
    ```bash
