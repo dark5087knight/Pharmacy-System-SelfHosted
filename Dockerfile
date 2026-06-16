@@ -11,6 +11,8 @@ RUN apt-get update && \
 
 WORKDIR /app
 
+COPY ./Backend/requirements.txt /tmp/requirements.txt
+RUN pip3 install --break-system-packages -r /tmp/requirements.txt
 COPY ./Backend /app/app
 
 COPY start.sh /app/start.sh
