@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.caduceus" "\0"
-            VALUE "FileDescription", "flutter_pharmacy" "\0"
+            VALUE "FileDescription", "Sanare" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "flutter_pharmacy" "\0"
+            VALUE "InternalName", "Sanare" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.caduceus. All rights reserved." "\0"
-            VALUE "OriginalFilename", "flutter_pharmacy.exe" "\0"
-            VALUE "ProductName", "flutter_pharmacy" "\0"
+            VALUE "OriginalFilename", "Sanare.exe" "\0"
+            VALUE "ProductName", "Sanare" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -45,7 +45,7 @@ class Translations {
       'tab.new': 'فتح علامة تبويب جديدة',
 
       // Login Screen
-      'login.title': 'كادوسيوس',
+      'login.title': 'ساناري',
       'login.subtitle': 'نظام إدارة الصيدليات المتكامل',
       'login.email': 'اسم المستخدم',
       'login.email_hint': 'مثال: admin',
@@ -552,7 +552,7 @@ class Translations {
       'tab.new': 'Open new tab',
 
       // Login Screen
-      'login.title': 'CADUCEUS',
+      'login.title': 'SANARE',
       'login.subtitle': 'Pharmacy Management OS',
       'login.email': 'USERNAME',
       'login.email_hint': 'e.g., admin',

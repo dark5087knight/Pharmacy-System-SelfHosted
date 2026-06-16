@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
     final workspace = Provider.of<WorkspaceProvider>(context);
 
     return MaterialApp(
-      title: 'Caduceus Pharmacy OS',
+      title: 'Sanare',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.getLightTheme(),
       darkTheme: AppTheme.getDarkTheme(),
