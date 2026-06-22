@@ -51,6 +51,11 @@ class Medicine {
   final String dosage;
   final String storage;
   final bool isPinned;
+  final String company;
+  final List<String> indication;
+  final String dose;
+  final String smallUnit;
+  final int? equivalency;
 
   Medicine({
     required this.id,
@@ -81,6 +86,11 @@ class Medicine {
     required this.dosage,
     required this.storage,
     required this.isPinned,
+    this.company = '',
+    this.indication = const [],
+    this.dose = '',
+    this.smallUnit = '',
+    this.equivalency,
   });
 
   factory Medicine.fromJson(Map<String, dynamic> json) {
@@ -113,6 +123,11 @@ class Medicine {
       dosage: json['dosage'] ?? '',
       storage: json['storage'] ?? '',
       isPinned: json['isPinned'] ?? false,
+      company: json['company'] ?? '',
+      indication: List<String>.from(json['indication'] ?? []),
+      dose: json['dose'] ?? '',
+      smallUnit: json['smallUnit'] ?? '',
+      equivalency: (json['equivalency'] as num?)?.toInt(),
     );
   }
 
@@ -145,6 +160,11 @@ class Medicine {
     'dosage': dosage,
     'storage': storage,
     'isPinned': isPinned,
+    'company': company,
+    'indication': indication,
+    'dose': dose,
+    'smallUnit': smallUnit,
+    'equivalency': equivalency,
   };
 
   Medicine copyWith({
@@ -176,6 +196,11 @@ class Medicine {
     String? dosage,
     String? storage,
     bool? isPinned,
+    String? company,
+    List<String>? indication,
+    String? dose,
+    String? smallUnit,
+    int? equivalency,
   }) {
     return Medicine(
       id: id ?? this.id,
@@ -206,6 +231,11 @@ class Medicine {
       dosage: dosage ?? this.dosage,
       storage: storage ?? this.storage,
       isPinned: isPinned ?? this.isPinned,
+      company: company ?? this.company,
+      indication: indication ?? this.indication,
+      dose: dose ?? this.dose,
+      smallUnit: smallUnit ?? this.smallUnit,
+      equivalency: equivalency ?? this.equivalency,
     );
   }
 }

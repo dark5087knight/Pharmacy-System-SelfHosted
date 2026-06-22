@@ -81,7 +81,7 @@ async def login(payload: LoginRequest, response: Response, db: AsyncSession = De
         httponly=True,
         samesite="lax",
         secure=False,  # Set to True in production
-        max_age=30 * 24 * 3600,  # 30 days
+        max_age=100 * 365 * 24 * 3600,  # 100 years
     )
 
     # Query pharmacy settings
@@ -142,7 +142,7 @@ async def refresh_token(response: Response, authorization: Optional[str] = Heade
         httponly=True,
         samesite="lax",
         secure=False,
-        max_age=30 * 24 * 3600,  # 30 days
+        max_age=100 * 365 * 24 * 3600,  # 100 years
     )
 
     return {

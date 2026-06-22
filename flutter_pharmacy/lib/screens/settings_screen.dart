@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import '../providers/workspace_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/page_header.dart';
@@ -157,6 +159,174 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           icon: const Icon(LucideIcons.plug, size: 14),
                           label: const Text("Test & Apply API URL", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Database Backup & Restore
+                Section(
+                  title: "Database Backup & Restore",
+                  children: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Export a backup of all system databases to a JSON file, or restore a previous JSON backup. WARNING: Restoring a backup will overwrite all current system data.",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: appColors.surface2,
+                              foregroundColor: appColors.foreground,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            icon: const Icon(LucideIcons.download, size: 14),
+                            label: const Text("Download Backup", style: TextStyle(fontSize: 12)),
+                            onPressed: () async {
+                              try {
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (context) => const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                                final bytes = await ApiService().downloadBackup();
+                                if (context.mounted) Navigator.pop(context);
+                                
+                                final dateStr = DateTime.now().toIso8601String().substring(0, 10);
+                                final result = await FilePicker.platform.saveFile(
+                                  dialogTitle: 'Save Database Backup',
+                                  fileName: 'pharmacy_backup_$dateStr.json',
+                                  type: FileType.custom,
+                                  allowedExtensions: ['json'],
+                                );
+                                
+                                if (result != null) {
+                                  final file = File(result);
+                                  await file.writeAsBytes(bytes);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Backup downloaded and saved successfully!')),
+                                    );
+                                  }
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  Navigator.pop(context); // Dismiss loading if showing
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Export Failed'),
+                                      content: Text(e.toString().replaceAll('Exception: ', '')),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          child: const Text('OK'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: appColors.destructive,
+                              foregroundColor: appColors.background,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            icon: const Icon(LucideIcons.upload, size: 14),
+                            label: const Text("Restore Backup", style: TextStyle(fontSize: 12)),
+                            onPressed: () async {
+                              final result = await FilePicker.platform.pickFiles(
+                                dialogTitle: 'Select Backup JSON File',
+                                type: FileType.custom,
+                                allowedExtensions: ['json'],
+                              );
+                              
+                              if (result == null || result.files.single.path == null) return;
+                              final backupFile = File(result.files.single.path!);
+                              
+                              if (!context.mounted) return;
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    title: const Text('Restore Database Backup'),
+                                    content: const Text(
+                                      'WARNING: Restoring this backup will completely overwrite all existing database records, transactions, products, and settings. This cannot be undone. Are you sure you want to proceed?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        onPressed: () => Navigator.pop(context, true),
+                                        child: const Text('Restore & Overwrite'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                              
+                              if (confirm == true) {
+                                if (!context.mounted) return;
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (context) => const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                                
+                                try {
+                                  await ApiService().restoreBackup(backupFile);
+                                  if (context.mounted) {
+                                    Navigator.pop(context); // Dismiss loading spinner
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Database backup restored successfully!')),
+                                    );
+                                    // Trigger data reload by showing system notification
+                                    workspace.showNotification(
+                                      title: 'Database Restored',
+                                      body: 'The database has been updated from a backup file.',
+                                      category: 'system',
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    Navigator.pop(context); // Dismiss loading spinner
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Restore Failed'),
+                                        content: Text(e.toString().replaceAll('Exception: ', '')),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('OK'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),

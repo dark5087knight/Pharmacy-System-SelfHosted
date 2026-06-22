@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../services/api_service.dart';
 import '../models/models.dart';
 import '../widgets/page_header.dart';
@@ -95,6 +95,12 @@ class _FinanceScreenState extends State<FinanceScreen> {
     final totalCost = _po.where((p) => p.status == 'received').fold<double>(0, (sum, p) => sum + p.total);
     final accountsPayable = _suppliers.fold<double>(0, (sum, s) => sum + s.outstandingBalance);
 
+    final todayPrefix = DateTime.now().toIso8601String().substring(0, 10);
+    final todaySales = _sales
+        .where((s) => s.createdAt.startsWith(todayPrefix))
+        .fold<double>(0.0, (sum, s) => sum + s.total);
+    final estimatedProfit = totalSales * 0.28;
+
     final List<String> monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final now = DateTime.now();
     final List<Map<String, dynamic>> timelineData = [];
@@ -131,30 +137,43 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 // Cards
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final cols = constraints.maxWidth > 800 ? 3 : 1;
+                    final cols = constraints.maxWidth > 1200 ? 5 : (constraints.maxWidth > 700 ? 3 : 1);
+                    final ratio = cols == 5 ? 1.8 : (cols == 3 ? 2.2 : 3.0);
                     return GridView.count(
                       crossAxisCount: cols,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: cols == 3 ? 2.5 : 3.0,
+                      childAspectRatio: ratio,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
                         StatCard(
+                          label: context.tr('dash.stats.today_sales'),
+                          value: todaySales.toIQD(),
+                          trend: const {'value': '8.2%', 'up': true},
+                          icon: LucideIcons.shoppingBag,
+                        ),
+                        StatCard(
                           label: context.tr('fin.card.revenue'),
-                          value: '\$${totalSales.toStringAsFixed(2)}',
+                          value: totalSales.toIQD(),
                           trend: const {'value': '15.6%', 'up': true},
                           icon: LucideIcons.trendingUp,
                         ),
                         StatCard(
+                          label: context.tr('dash.stats.est_profit'),
+                          value: estimatedProfit.toIQD(),
+                          hint: context.tr('dash.stats.profit_margin_hint'),
+                          icon: LucideIcons.wallet,
+                        ),
+                        StatCard(
                           label: context.tr('fin.card.inventory_cost'),
-                          value: '\$${totalCost.toStringAsFixed(2)}',
+                          value: totalCost.toIQD(),
                           hint: context.tr('fin.card.hint_po'),
-                          icon: LucideIcons.shoppingBag,
+                          icon: LucideIcons.package,
                         ),
                         StatCard(
                           label: context.tr('fin.card.payable'),
-                          value: '\$${accountsPayable.toStringAsFixed(2)}',
+                          value: accountsPayable.toIQD(),
                           hint: context.tr('fin.card.hint_due'),
                           trend: {'value': context.tr('fin.card.trend_high'), 'up': false},
                           icon: LucideIcons.dollarSign,
@@ -209,7 +228,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                             _td(s.invoiceNumber, appColors, isMono: true),
                             _td(s.customerId ?? context.tr('fin.anonymous'), appColors),
                             _td(s.paymentMethod.toUpperCase(), appColors),
-                            _td('\$${s.total.toStringAsFixed(2)}', appColors, isMono: true),
+                            _td(s.total.toIQD(), appColors, isMono: true),
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 6.0),
                               child: StatusBadge(

@@ -22,6 +22,7 @@ from app.reports.router import router as reports_router
 from app.notifications.router import router as notifications_router
 from app.audit.router import router as audit_router
 from app.pharmacy.router import router as pharmacy_router
+from app.backup.router import router as backup_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -78,6 +79,16 @@ async def general_exception_handler(request: Request, exc: Exception):
         content={"detail": str(exc)}
     )
 
+@app.middleware("http")
+async def validate_api_key(request: Request, call_next):
+    if settings.API_KEY:
+        path = request.url.path
+        if path not in ["/health", "/auth/info", "/docs", "/openapi.json", "/redoc"] and not path.startswith("/docs") and not path.startswith("/openapi.json"):
+            api_key = request.headers.get("x-api-key")
+            if api_key != settings.API_KEY:
+                return JSONResponse(status_code=403, content={"detail": "Invalid API key"})
+    return await call_next(request)
+
 
 # Register routers at root level for backward compatibility
 app.include_router(auth_router)
@@ -92,6 +103,7 @@ app.include_router(reports_router)
 app.include_router(notifications_router)
 app.include_router(audit_router)
 app.include_router(pharmacy_router)
+app.include_router(backup_router)
 
 @app.get("/health")
 async def health_check():

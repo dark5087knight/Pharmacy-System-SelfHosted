@@ -17,6 +17,7 @@ import '../screens/finance_screen.dart';
 import '../screens/reports_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/activities_screen.dart';
 
 class TabHost extends StatelessWidget {
   const TabHost({super.key});
@@ -48,6 +49,8 @@ class TabHost extends StatelessWidget {
         return const NotificationsScreen();
       case 'settings':
         return const SettingsScreen();
+      case 'activities':
+        return const ActivitiesScreen();
       default:
         return Center(
           child: Text('Module "$moduleId" is not implemented yet.'),

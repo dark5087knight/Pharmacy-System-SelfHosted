@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/workspace_provider.dart';
 import '../services/api_service.dart';
-import '../models/models.dart';
 import '../widgets/page_header.dart';
 import '../widgets/charts.dart';
 import '../theme/theme.dart';
@@ -22,9 +21,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _errorMsg = '';
   Map<String, dynamic> _stats = {};
   List<Map<String, dynamic>> _revenueSeries = [];
-  List<Map<String, dynamic>> _categoryBreakdown = [];
   List<Map<String, dynamic>> _topSold = [];
-  List<ActivityEvent> _recentActivity = [];
 
   @override
   void initState() {
@@ -44,9 +41,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() {
           _stats = res['stats'] as Map<String, dynamic>;
           _revenueSeries = (res['revenueSeries'] as List).cast<Map<String, dynamic>>();
-          _categoryBreakdown = (res['categoryBreakdown'] as List).cast<Map<String, dynamic>>();
           _topSold = (res['topSold'] as List).cast<Map<String, dynamic>>();
-          _recentActivity = res['recentActivity'] as List<ActivityEvent>;
           _loading = false;
         });
       }
@@ -119,50 +114,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                // Metrics grid
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final cols = constraints.maxWidth > 1000 ? 4 : (constraints.maxWidth > 600 ? 2 : 1);
-                    return GridView.count(
-                      crossAxisCount: cols,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: cols == 4 ? 2.2 : 2.5,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        StatCard(
-                          label: context.tr('dash.stats.today_sales'),
-                          value: '\$${(_stats['todayRevenue'] ?? 0.0).toStringAsFixed(2)}',
-                          trend: const {'value': '8.2%', 'up': true},
-                          icon: LucideIcons.shoppingBag,
-                        ),
-                        StatCard(
-                          label: context.tr('dash.stats.monthly_sales'),
-                          value: '\$${(_stats['monthRevenue'] ?? 0.0).toStringAsFixed(2)}',
-                          trend: const {'value': '12.4%', 'up': true},
-                          icon: LucideIcons.trendingUp,
-                        ),
-                        StatCard(
-                          label: context.tr('dash.stats.est_profit'),
-                          value: '\$${(_stats['profit'] ?? 0.0).toStringAsFixed(2)}',
-                          hint: context.tr('dash.stats.profit_margin_hint'),
-                          icon: LucideIcons.dollarSign,
-                        ),
-                        StatCard(
-                          label: context.tr('dash.stats.expiry_alerts'),
-                          value: '${_stats['expiringSoon'] ?? 0}',
-                          hint: context.tr('dash.stats.expiry_hint'),
-                          trend: {'value': '${_stats['expired'] ?? 0} ${context.tr('dash.stats.expired_hint')}', 'up': false},
-                          icon: LucideIcons.calendar,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // Main Charts Grid
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final isWide = constraints.maxWidth > 1100;
@@ -206,7 +157,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   children: [
                                     _td(t['name']?.toString() ?? '', appColors),
                                     _td(t['qty']?.toString() ?? '0', appColors, mono: true),
-                                    _td('\$${((t['revenue'] ?? 0.0) as num).toStringAsFixed(2)}', appColors, mono: true),
+                                    _td(((t['revenue'] ?? 0.0) as num).toIQD(), appColors, mono: true),
                                   ],
                                 );
                               }),
@@ -219,10 +170,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     final rightColumn = Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Category mix pie chart
-                        Section(
-                          title: context.tr('dash.revenue_mix'),
-                          children: MonoPie(data: _categoryBreakdown),
+                        // Expiry Alerts Card
+                        StatCard(
+                          label: context.tr('dash.stats.expiry_alerts'),
+                          value: '${_stats['expiringSoon'] ?? 0}',
+                          hint: context.tr('dash.stats.expiry_hint'),
+                          trend: {'value': '${_stats['expired'] ?? 0} ${context.tr('dash.stats.expired_hint')}', 'up': false},
+                          icon: LucideIcons.calendar,
                         ),
                         const SizedBox(height: 20),
 
@@ -250,52 +204,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 workspace.openTab('warehouse');
                               }, appColors),
                             ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Audit activity list
-                        Section(
-                          title: context.tr('dash.audit'),
-                          children: Container(
-                            constraints: const BoxConstraints(maxHeight: 280),
-                            child: ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: _recentActivity.length,
-                              itemBuilder: (context, idx) {
-                                final a = _recentActivity[idx];
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6.0),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        height: 6,
-                                        width: 6,
-                                        margin: const EdgeInsets.only(top: 6, right: 8),
-                                        decoration: BoxDecoration(
-                                          color: appColors.foreground,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(a.message, style: const TextStyle(fontSize: 12)),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              '${a.actor} · ${_formatTime(a.at)}',
-                                              style: TextStyle(fontSize: 10, color: appColors.mutedForeground),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
                           ),
                         ),
                       ],
@@ -329,20 +237,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
-  String _formatTime(String isoString) {
-    try {
-      final dt = DateTime.parse(isoString);
-      final diff = DateTime.now().difference(dt);
-      if (diff.inDays > 0) return context.tr('time.days_ago', args: {'count': diff.inDays.toString()});
-      if (diff.inHours > 0) return context.tr('time.hours_ago', args: {'count': diff.inHours.toString()});
-      if (diff.inMinutes > 0) return context.tr('time.minutes_ago', args: {'count': diff.inMinutes.toString()});
-      return context.tr('time.just_now');
-    } catch (_) {
-      return '';
-    }
-  }
-
 
   Widget _th(String text, AppColors appColors) {
     return Padding(

@@ -50,18 +50,54 @@ def format_medicine(m: Medicine) -> dict:
         "sideEffects": m.side_effects or [],
         "interactions": m.interactions or [],
         "dosage": m.dosage or "",
-        "storage": m.storage or ""
+        "storage": m.storage or "",
+        "company": m.company or "",
+        "indication": m.indication or [],
+        "dose": m.dose or "",
+        "smallUnit": m.small_unit or "",
+        "equivalency": m.equivalency
     }
 
 @router.get("/medicines", response_model=List[MedicineResponse])
 async def read_medicines(
+    q: Optional[str] = None,
+    category: Optional[str] = None,
+    limit: int = 150,
     db: AsyncSession = Depends(get_db), 
     current_user: Staff = Depends(get_current_user)
 ):
     stmt = select(Medicine).filter(Medicine.deleted_at == None).options(selectinload(Medicine.category))
+    
+    if category and category != "all":
+        stmt = stmt.join(MedicineCategory).filter(MedicineCategory.name.ilike(category))
+        
+    if q:
+        q_clean = f"%{q}%"
+        stmt = stmt.filter(
+            (Medicine.name.ilike(q_clean)) | 
+            (Medicine.generic_name.ilike(q_clean)) |
+            (Medicine.brand.ilike(q_clean)) |
+            (Medicine.barcode.ilike(q_clean)) |
+            (Medicine.sku.ilike(q_clean))
+        )
+        
+    # Order pinned items first, then by name
+    stmt = stmt.order_by(Medicine.is_pinned.desc(), Medicine.name.asc()).limit(limit)
+    
     result = await db.execute(stmt)
     medicines = result.scalars().all()
     return [format_medicine(m) for m in medicines]
+
+
+@router.get("/categories", response_model=List[str])
+async def read_medicine_categories(
+    db: AsyncSession = Depends(get_db),
+    current_user: Staff = Depends(get_current_user)
+):
+    stmt = select(MedicineCategory.name).order_by(MedicineCategory.name.asc())
+    result = await db.execute(stmt)
+    names = result.scalars().all()
+    return list(names)
 
 
 @router.get("/medicines/search", response_model=List[MedicineResponse])
@@ -186,6 +222,11 @@ async def create_medicine(
         interactions=m.interactions,
         dosage=m.dosage,
         storage=m.storage,
+        company=m.company,
+        indication=m.indication or [],
+        dose=m.dose,
+        small_unit=m.small_unit,
+        equivalency=m.equivalency,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
         created_by=current_user.id,
@@ -275,6 +316,11 @@ async def update_medicine(
     db_med.interactions = m.interactions
     db_med.dosage = m.dosage
     db_med.storage = m.storage
+    db_med.company = m.company
+    db_med.indication = m.indication or []
+    db_med.dose = m.dose
+    db_med.small_unit = m.small_unit
+    db_med.equivalency = m.equivalency
     db_med.updated_at = datetime.now(timezone.utc)
     db_med.updated_by = current_user.id
 

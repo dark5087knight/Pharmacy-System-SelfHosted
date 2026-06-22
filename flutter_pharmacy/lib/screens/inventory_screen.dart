@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import '../providers/workspace_provider.dart';
 import '../services/api_service.dart';
@@ -22,9 +23,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
   bool _loading = true;
   List<Medicine> _medicines = [];
   List<Supplier> _suppliers = [];
+  List<String> _categories = [];
   String _selectedSupplierId = '';
   String _filterStock = 'all'; // all, low, out, expired
   String _filterCategory = 'all';
+  String _searchQuery = '';
+  Timer? _debounce;
   Medicine? _selectedMedicine; // for detail sheet
   bool _sheetOpen = false;
 
@@ -40,6 +44,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
   final _buyPriceController = TextEditingController();
   final _expiryController = TextEditingController();
   final _barcodeController = TextEditingController();
+  final _companyController = TextEditingController();
+  final _indicationController = TextEditingController();
+  final _doseController = TextEditingController();
+  final _smallUnitController = TextEditingController();
+  final _equivalencyController = TextEditingController();
 
   @override
   void initState() {
@@ -49,6 +58,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _skuController.dispose();
     _nameController.dispose();
     _brandController.dispose();
@@ -59,18 +69,31 @@ class _InventoryScreenState extends State<InventoryScreen> {
     _buyPriceController.dispose();
     _expiryController.dispose();
     _barcodeController.dispose();
+    _companyController.dispose();
+    _indicationController.dispose();
+    _doseController.dispose();
+    _smallUnitController.dispose();
+    _equivalencyController.dispose();
     super.dispose();
   }
 
-  void _fetchMedicines() async {
+  void _fetchMedicines({String? query, String? category}) async {
     final db = ApiService();
     try {
-      final res = await db.request<List<Medicine>>('medicines');
+      final qParam = query != null && query.isNotEmpty ? 'q=${Uri.encodeComponent(query)}' : '';
+      final catParam = category != null && category != 'all' ? 'category=${Uri.encodeComponent(category)}' : '';
+      final params = [if (qParam.isNotEmpty) qParam, if (catParam.isNotEmpty) catParam].join('&');
+      final route = 'medicines${params.isNotEmpty ? "?$params" : ""}';
+      
+      final res = await db.request<List<Medicine>>(route);
       final sups = await db.request<List<Supplier>>('suppliers');
+      final cats = await db.request<List<String>>('categories');
+      
       if (mounted) {
         setState(() {
           _medicines = res;
           _suppliers = sups;
+          _categories = cats;
           _loading = false;
         });
       }
@@ -81,6 +104,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
         });
       }
     }
+  }
+
+  void _reloadMedicines() {
+    _fetchMedicines(query: _searchQuery, category: _filterCategory);
+  }
+
+  void _onSearchChanged(String query) {
+    _searchQuery = query;
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _fetchMedicines(query: _searchQuery, category: _filterCategory);
+    });
   }
 
   List<Medicine> _getFilteredMedicines() {
@@ -120,6 +155,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
       _sellPriceController.text = '9.99';
       _buyPriceController.text = '5.00';
       _expiryController.text = DateFormat('yyyy-MM-dd').format(DateTime.now().add(const Duration(days: 365)));
+      _companyController.clear();
+      _indicationController.clear();
+      _doseController.clear();
+      _smallUnitController.clear();
+      _equivalencyController.clear();
       _selectedSupplierId = _suppliers.isNotEmpty ? _suppliers.first.id : '';
       _sheetOpen = true;
     });
@@ -138,6 +178,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
       _sellPriceController.text = m.sellingPrice.toString();
       _buyPriceController.text = m.purchasePrice.toString();
       _expiryController.text = DateFormat('yyyy-MM-dd').format(DateTime.parse(m.expiryDate));
+      _companyController.text = m.company;
+      _indicationController.text = m.indication.join(', ');
+      _doseController.text = m.dose;
+      _smallUnitController.text = m.smallUnit;
+      _equivalencyController.text = m.equivalency?.toString() ?? '';
       _selectedSupplierId = m.supplierId;
       _sheetOpen = true;
     });
@@ -149,6 +194,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
       final threshold = int.tryParse(_thresholdController.text) ?? 20;
       final sellPrice = double.tryParse(_sellPriceController.text) ?? 0.0;
       final buyPrice = double.tryParse(_buyPriceController.text) ?? 0.0;
+      final equivalency = int.tryParse(_equivalencyController.text);
+      final indication = _indicationController.text
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
 
       final db = ApiService();
       if (_selectedMedicine == null) {
@@ -166,6 +217,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
             expiryDate: DateTime.parse(_expiryController.text).toIso8601String(),
             supplierId: _selectedSupplierId,
             lowStockThreshold: threshold,
+            company: _companyController.text,
+            indication: indication,
+            dose: _doseController.text,
+            smallUnit: _smallUnitController.text,
+            equivalency: equivalency,
           );
           await db.updateMedicine(updatedMed);
         } else {
@@ -194,12 +250,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
             prescriptionRequired: false,
             supplierId: _selectedSupplierId,
             isPinned: false,
-
             description: '',
             sideEffects: [],
             interactions: [],
             dosage: '1 daily',
             storage: 'Store below 25°C',
+            company: _companyController.text,
+            indication: indication,
+            dose: _doseController.text,
+            smallUnit: _smallUnitController.text,
+            equivalency: equivalency,
           );
           await db.createMedicine(newMed);
         }
@@ -216,10 +276,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
           purchasePrice: buyPrice,
           supplierId: _selectedSupplierId,
           expiryDate: DateTime.parse(_expiryController.text).toIso8601String(),
+          company: _companyController.text,
+          indication: indication,
+          dose: _doseController.text,
+          smallUnit: _smallUnitController.text,
+          equivalency: equivalency,
         );
         await db.updateMedicine(updatedMed);
       }
-      _fetchMedicines();
+      _reloadMedicines();
       setState(() {
         _sheetOpen = false;
       });
@@ -228,6 +293,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   void _onBulkDeleteMedicines(List<Medicine> selected) {
     if (selected.isEmpty) return;
+    final workspace = Provider.of<WorkspaceProvider>(context, listen: false);
     showDialog<bool>(
       context: context,
       builder: (context) {
@@ -250,12 +316,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
       },
     ).then((confirm) async {
       if (confirm == true) {
-        final workspace = Provider.of<WorkspaceProvider>(context, listen: false);
         try {
           for (final m in selected) {
             await ApiService().deleteMedicine(m.id);
           }
-          _fetchMedicines();
+          _reloadMedicines();
           workspace.showNotification(
             title: 'Bulk Deletion',
             body: 'Successfully deleted ${selected.length} medications.',
@@ -282,7 +347,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
 
     final filtered = _getFilteredMedicines();
-    final categories = _medicines.map((m) => m.category).toSet().toList();
 
     // Summary counts
     final lowStockCount = _medicines.where((m) => m.quantity > 0 && m.quantity <= m.lowStockThreshold).length;
@@ -342,11 +406,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             value: _filterCategory,
                             style: TextStyle(fontSize: 12, color: appColors.foreground),
                             onChanged: (val) {
-                              if (val != null) setState(() => _filterCategory = val);
+                              if (val != null) {
+                                setState(() {
+                                  _filterCategory = val;
+                                });
+                                _fetchMedicines(query: _searchQuery, category: val);
+                              }
                             },
                             items: [
                               DropdownMenuItem(value: 'all', child: Text(context.tr('inventory.filter.all_cats'))),
-                              ...categories.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+                              ..._categories.map((c) => DropdownMenuItem(value: c, child: Text(c))),
                             ],
                           ),
                         ),
@@ -364,6 +433,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       getRowId: (m) => m.id,
                       emptyText: context.tr('inventory.empty'),
                       searchKeys: (m) => [m.name, m.sku, m.brand, m.genericName, m.barcode],
+                      onSearchChanged: _onSearchChanged,
                       onRowClick: (m) {
                         workspace.openTab('medicine-details', title: m.name, params: {'id': m.id});
                       },
@@ -394,9 +464,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     try {
                                       final updated = m.copyWith(isPinned: !m.isPinned);
                                       await ApiService().updateMedicine(updated);
-                                      _fetchMedicines();
+                                      _reloadMedicines();
                                     } catch (_) {
-                                      _fetchMedicines();
+                                      _reloadMedicines();
                                     }
                                   },
                                   child: Icon(
@@ -424,7 +494,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         DataTableColumn(
                           key: 'brand',
                           header: context.tr('inventory.col.brand'),
-                          cellBuilder: (m) => Text('${m.brand} • ${m.category}', style: const TextStyle(fontSize: 12)),
+                          cellBuilder: (m) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('${m.brand} • ${m.category}', style: const TextStyle(fontSize: 12)),
+                              if (m.indication.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2.0),
+                                  child: Text(
+                                    m.indication.join(', '),
+                                    style: TextStyle(fontSize: 10, color: appColors.mutedForeground),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                         DataTableColumn(
                           key: 'quantity',
@@ -453,7 +537,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           key: 'price',
                           header: context.tr('inventory.col.price'),
                           cellBuilder: (m) => Text(
-                            '\$${m.purchasePrice.toStringAsFixed(2)} / \$${m.sellingPrice.toStringAsFixed(2)}',
+                            '${m.purchasePrice.toIQD()} / ${m.sellingPrice.toIQD()}',
                             style: AppTheme.mono(fontSize: 12),
                           ),
                         ),
@@ -628,6 +712,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           _buildField(context.tr('inventory.form.buy_price'), _buyPriceController, number: true),
                           _buildField(context.tr('inventory.form.sell_price'), _sellPriceController, number: true),
                           _buildDatePickerField(context.tr('inventory.form.expiry'), _expiryController, required: true),
+                          _buildField('Company', _companyController),
+                          _buildField('Indication (comma-separated)', _indicationController),
+                          _buildField('Dose', _doseController),
+                          _buildField('Small Unit', _smallUnitController),
+                          _buildField('Equivalency', _equivalencyController, number: true),
                           
                           // Supplier dropdown
                           Padding(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
@@ -391,11 +391,11 @@ class _ReportGenerationDialogState extends State<ReportGenerationDialog> {
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey900),
               data: [
-                ['Metric Indicator', 'Amount Value (\$)'],
-                ['Total Revenue (Sales)', '\$${totalRevenue.toStringAsFixed(2)}'],
-                ['Total Operational Costs (POs)', '\$${totalExpenses.toStringAsFixed(2)}'],
-                ['Net Operating Income', '\$${(totalRevenue - totalExpenses).toStringAsFixed(2)}'],
-                ['Estimated Wholesale Inventory Value', '\$${stockValue.toStringAsFixed(2)}'],
+                ['Metric Indicator', 'Amount Value (IQD)'],
+                ['Total Revenue (Sales)', totalRevenue.toIQD()],
+                ['Total Operational Costs (POs)', totalExpenses.toIQD()],
+                ['Net Operating Income', (totalRevenue - totalExpenses).toIQD()],
+                ['Estimated Wholesale Inventory Value', stockValue.toIQD()],
               ],
             ),
             pw.SizedBox(height: 20),
@@ -409,13 +409,13 @@ class _ReportGenerationDialogState extends State<ReportGenerationDialog> {
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
               data: [
-                ['Invoice #', 'Date', 'Payment Method', 'Status', 'Revenue (\$)'],
+                ['Invoice #', 'Date', 'Payment Method', 'Status', 'Revenue (IQD)'],
                 ...sales.map((s) => [
                   s.invoiceNumber,
                   s.createdAt.length >= 10 ? s.createdAt.substring(0, 10) : s.createdAt,
                   s.paymentMethod.toUpperCase(),
                   s.status.toUpperCase(),
-                  '\$${s.total.toStringAsFixed(2)}',
+                  s.total.toIQD(),
                 ]),
               ],
             ),
@@ -430,12 +430,12 @@ class _ReportGenerationDialogState extends State<ReportGenerationDialog> {
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
               data: [
-                ['PO Code', 'Date', 'Status', 'Wholesale Cost (\$)'],
+                ['PO Code', 'Date', 'Status', 'Wholesale Cost (IQD)'],
                 ...pos.map((p) => [
                   p.poNumber,
                   p.createdAt.length >= 10 ? p.createdAt.substring(0, 10) : p.createdAt,
                   p.status.toUpperCase(),
-                  '\$${p.total.toStringAsFixed(2)}',
+                  p.total.toIQD(),
                 ]),
               ],
             ),
@@ -455,8 +455,8 @@ class _ReportGenerationDialogState extends State<ReportGenerationDialog> {
                   m.sku,
                   m.name,
                   '${m.quantity} ${m.unit}s',
-                  '\$${m.purchasePrice.toStringAsFixed(2)}',
-                  '\$${m.sellingPrice.toStringAsFixed(2)}',
+                  m.purchasePrice.toIQD(),
+                  m.sellingPrice.toIQD(),
                   m.expiryDate.length >= 10 ? m.expiryDate.substring(0, 10) : m.expiryDate,
                 ]),
               ],
@@ -483,7 +483,7 @@ class _ReportGenerationDialogState extends State<ReportGenerationDialog> {
       sheet.appendRow([TextCellValue('Caduceus Pharmacy OS - Financial Summary')]);
       sheet.appendRow([TextCellValue('Period: ${DateFormat('yyyy-MM-dd').format(_startDate)} to ${DateFormat('yyyy-MM-dd').format(_endDate)}')]);
       sheet.appendRow([]);
-      sheet.appendRow([TextCellValue('Financial Metric'), TextCellValue('Value (\$)')]);
+      sheet.appendRow([TextCellValue('Financial Metric'), TextCellValue('Value (IQD)')]);
 
       final double totalRevenue = sales.fold(0.0, (sum, s) => sum + s.total);
       final double totalExpenses = pos.fold(0.0, (sum, p) => sum + p.total);
@@ -502,7 +502,7 @@ class _ReportGenerationDialogState extends State<ReportGenerationDialog> {
         TextCellValue('Date'),
         TextCellValue('Payment Method'),
         TextCellValue('Status'),
-        TextCellValue('Total (\$)'),
+        TextCellValue('Total (IQD)'),
       ]);
       for (final s in sales) {
         sheet.appendRow([
@@ -521,7 +521,7 @@ class _ReportGenerationDialogState extends State<ReportGenerationDialog> {
         TextCellValue('PO Number'),
         TextCellValue('Date'),
         TextCellValue('Status'),
-        TextCellValue('Total Cost (\$)'),
+        TextCellValue('Total Cost (IQD)'),
       ]);
       for (final p in pos) {
         sheet.appendRow([
@@ -539,9 +539,9 @@ class _ReportGenerationDialogState extends State<ReportGenerationDialog> {
         TextCellValue('SKU'),
         TextCellValue('Medication Name'),
         TextCellValue('Quantity'),
-        TextCellValue('Purchase Price (\$)'),
-        TextCellValue('Selling Price (\$)'),
-        TextCellValue('Stock Value (\$)'),
+        TextCellValue('Purchase Price (IQD)'),
+        TextCellValue('Selling Price (IQD)'),
+        TextCellValue('Stock Value (IQD)'),
         TextCellValue('Expiry Date'),
       ]);
       for (final m in medicines) {

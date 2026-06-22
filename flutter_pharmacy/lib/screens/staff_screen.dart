@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import '../providers/workspace_provider.dart';
@@ -668,6 +668,7 @@ class _StaffScreenState extends State<StaffScreen> {
       return;
     }
 
+    final workspace = Provider.of<WorkspaceProvider>(context, listen: false);
     showDialog<bool>(
       context: context,
       builder: (context) {
@@ -698,7 +699,6 @@ class _StaffScreenState extends State<StaffScreen> {
       },
     ).then((confirm) async {
       if (confirm == true) {
-        final workspace = Provider.of<WorkspaceProvider>(context, listen: false);
         try {
           for (final s in deletable) {
             await _db.deleteStaff(s.id);

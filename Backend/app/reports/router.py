@@ -2,13 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy import func, Date, cast
 from typing import List
 from datetime import datetime, timedelta, timezone, date
 import uuid
 
 from app.shared.database import get_db
 from app.dependencies import get_current_user, require_permission
-from app.models import Staff, Medicine, MedicineCategory, Sale, PurchaseOrder, Activity
+from app.models import Staff, Medicine, MedicineCategory, Sale, SaleItem, PurchaseOrder, Activity
 from app.reports.schemas import DashboardResponse
 
 router = APIRouter(tags=["Reports & Dashboard"])
@@ -18,20 +19,50 @@ async def get_dashboard_data(
     db: AsyncSession = Depends(get_db), 
     current_user: Staff = Depends(require_permission("view_reports"))
 ):
-    # 1. Fetch all medicines for stats and category breakdown
-    med_stmt = select(Medicine).options(selectinload(Medicine.category))
-    med_res = await db.execute(med_stmt)
-    medicines = med_res.scalars().all()
+    # 1. Calculate medicine statistics in database
+    now_date = datetime.now(timezone.utc).date()
+    
+    out_of_stock_stmt = select(func.count()).select_from(Medicine).filter(Medicine.quantity <= 0)
+    low_stock_stmt = (
+        select(func.count())
+        .select_from(Medicine)
+        .filter(Medicine.quantity > 0, Medicine.quantity <= Medicine.low_stock_threshold)
+    )
+    expired_stmt = select(func.count()).select_from(Medicine).filter(Medicine.expiry_date < now_date)
+    expiring_soon_stmt = (
+        select(func.count())
+        .select_from(Medicine)
+        .filter(Medicine.expiry_date >= now_date, Medicine.expiry_date <= now_date + timedelta(days=60))
+    )
+    
+    out_of_stock = (await db.execute(out_of_stock_stmt)).scalar() or 0
+    low_stock = (await db.execute(low_stock_stmt)).scalar() or 0
+    expired = (await db.execute(expired_stmt)).scalar() or 0
+    expiring_soon = (await db.execute(expiring_soon_stmt)).scalar() or 0
 
-    # 2. Fetch completed sales for revenue stats, series, and top sold
-    sales_stmt = select(Sale).filter(Sale.status == "completed").options(selectinload(Sale.items))
-    sales_res = await db.execute(sales_stmt)
-    sales = sales_res.scalars().all()
+    # 2. Fetch sales stats (revenue)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    today_rev_stmt = select(func.sum(Sale.total)).filter(Sale.status == "completed", Sale.created_at >= today_start)
+    month_rev_stmt = select(func.sum(Sale.total)).filter(Sale.status == "completed")
+    
+    today_revenue = float((await db.execute(today_rev_stmt)).scalar() or 0.0)
+    month_revenue = float((await db.execute(month_rev_stmt)).scalar() or 0.0)
+    profit = round(month_revenue * 0.28, 2)
 
-    # 3. Fetch purchase orders for pending count
-    po_stmt = select(PurchaseOrder).filter(PurchaseOrder.status.in_(["draft", "sent", "pending", "partial"]))
-    po_res = await db.execute(po_stmt)
-    purchase_orders = po_res.scalars().all()
+    stats = {
+        "today_revenue": today_revenue,
+        "month_revenue": month_revenue,
+        "profit": profit,
+        "expiring_soon": expiring_soon,
+        "expired": expired,
+        "out_of_stock": out_of_stock,
+        "low_stock": low_stock
+    }
+
+    # 3. Fetch purchase orders count
+    po_stmt = select(func.count()).select_from(PurchaseOrder).filter(PurchaseOrder.status.in_(["draft", "sent", "pending", "partial"]))
+    pending_orders = (await db.execute(po_stmt)).scalar() or 0
 
     # 4. Fetch recent activities (max 10)
     act_stmt = (
@@ -52,48 +83,18 @@ async def get_dashboard_data(
             "severity": act.severity
         })
 
-    # --- Calculations ---
-    now_date = datetime.now(timezone.utc).date()
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    today_revenue = sum(float(s.total) for s in sales if s.created_at >= today_start)
-    month_revenue = sum(float(s.total) for s in sales)
-    profit = round(month_revenue * 0.28, 2)
-
-    expiring_soon = 0
-    expired = 0
-    out_of_stock = 0
-    low_stock = 0
-
-    for m in medicines:
-        if m.quantity <= 0:
-            out_of_stock += 1
-        elif m.quantity <= m.low_stock_threshold:
-            low_stock += 1
-        
-        if m.expiry_date:
-            # expiry_date is a datetime.date object
-            diff_days = (m.expiry_date - now_date).days
-            if diff_days < 0:
-                expired += 1
-            elif diff_days <= 60:
-                expiring_soon += 1
-
-    stats = {
-        "today_revenue": today_revenue,
-        "month_revenue": month_revenue,
-        "profit": profit,
-        "expiring_soon": expiring_soon,
-        "expired": expired,
-        "out_of_stock": out_of_stock,
-        "low_stock": low_stock
-    }
-
-    # Revenue timeline graph dataset (last 30 days)
-    revenue_by_day = {}
-    for s in sales:
-        day_str = s.created_at.strftime("%Y-%m-%d")
-        revenue_by_day[day_str] = revenue_by_day.get(day_str, 0.0) + float(s.total)
+    # 5. Revenue timeline graph dataset (last 30 days)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    timeline_stmt = (
+        select(
+            cast(Sale.created_at, Date).label('day'),
+            func.sum(Sale.total)
+        )
+        .filter(Sale.status == "completed", Sale.created_at >= thirty_days_ago)
+        .group_by(cast(Sale.created_at, Date))
+    )
+    timeline_res = await db.execute(timeline_stmt)
+    revenue_by_day = {day.strftime("%Y-%m-%d"): float(val) for day, val in timeline_res.all() if day}
 
     revenue_series = []
     for i in range(30):
@@ -106,28 +107,43 @@ async def get_dashboard_data(
             "profit": round(rev * 0.28, 2)
         })
 
-    # Category breakdown mapping
-    cat_map = {}
-    for m in medicines:
-        cat_name = m.category.name if m.category else "Analgesic"
-        cat_map[cat_name] = cat_map.get(cat_name, 0.0) + m.quantity * float(m.selling_price)
-        
-    category_breakdown = [{"name": k, "value": round(v)} for k, v in cat_map.items()]
+    # 6. Category breakdown mapping
+    cat_stmt = (
+        select(func.coalesce(MedicineCategory.name, 'Analgesic'), func.sum(Medicine.quantity * Medicine.selling_price))
+        .outerjoin(MedicineCategory, Medicine.category_id == MedicineCategory.id)
+        .group_by(func.coalesce(MedicineCategory.name, 'Analgesic'))
+    )
+    cat_res = await db.execute(cat_stmt)
+    category_breakdown = [{"name": name, "value": round(float(val or 0))} for name, val in cat_res.all()]
 
-    # Top/least sold computations
-    sold_map = {}
-    for s in sales:
-        for it in s.items:
-            med_id_str = str(it.medicine_id)
-            if med_id_str not in sold_map:
-                sold_map[med_id_str] = {"name": it.name, "qty": 0, "revenue": 0.0}
-            sold_map[med_id_str]["qty"] += it.quantity
-            sold_map[med_id_str]["revenue"] += float(it.unit_price) * it.quantity
+    # 7. Top/least sold computations
+    top_sold_stmt = (
+        select(
+            SaleItem.name,
+            func.sum(SaleItem.quantity).label('qty'),
+            func.sum(SaleItem.unit_price * SaleItem.quantity).label('revenue')
+        )
+        .join(Sale, SaleItem.sale_id == Sale.id)
+        .filter(Sale.status == "completed")
+        .group_by(SaleItem.name)
+        .order_by(func.sum(SaleItem.quantity).desc())
+    )
+    top_sold_res = await db.execute(top_sold_stmt.limit(6))
+    top_sold = [{"name": name, "qty": int(qty), "revenue": float(rev)} for name, qty, rev in top_sold_res.all()]
     
-    top_sold_list = list(sold_map.values())
-    top_sold_list.sort(key=lambda x: x["qty"], reverse=True)
-    top_sold = top_sold_list[:6]
-    least_sold = list(reversed(top_sold_list))[:5]
+    least_sold_stmt = (
+        select(
+            SaleItem.name,
+            func.sum(SaleItem.quantity).label('qty'),
+            func.sum(SaleItem.unit_price * SaleItem.quantity).label('revenue')
+        )
+        .join(Sale, SaleItem.sale_id == Sale.id)
+        .filter(Sale.status == "completed")
+        .group_by(SaleItem.name)
+        .order_by(func.sum(SaleItem.quantity).asc())
+    )
+    least_sold_res = await db.execute(least_sold_stmt.limit(5))
+    least_sold = [{"name": name, "qty": int(qty), "revenue": float(rev)} for name, qty, rev in least_sold_res.all()]
 
     return {
         "stats": stats,
@@ -136,5 +152,5 @@ async def get_dashboard_data(
         "top_sold": top_sold,
         "least_sold": least_sold,
         "recent_activity": recent_activity,
-        "pending_orders": len(purchase_orders)
+        "pending_orders": pending_orders
     }

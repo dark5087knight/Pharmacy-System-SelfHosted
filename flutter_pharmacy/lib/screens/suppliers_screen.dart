@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/workspace_provider.dart';
 import '../services/api_service.dart';
@@ -113,6 +113,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
 
   void _onBulkDeleteSuppliers(List<Supplier> selected) {
     if (selected.isEmpty) return;
+    final workspace = Provider.of<WorkspaceProvider>(context, listen: false);
     showDialog<bool>(
       context: context,
       builder: (context) {
@@ -135,7 +136,6 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
       },
     ).then((confirm) async {
       if (confirm == true) {
-        final workspace = Provider.of<WorkspaceProvider>(context, listen: false);
         try {
           for (final s in selected) {
             await _db.deleteSupplier(s.id);
@@ -273,7 +273,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                           header: context.tr('sup.col.balance'),
                           sortValue: (s) => s.outstandingBalance,
                           cellBuilder: (s) => Text(
-                            '\$${s.outstandingBalance.toStringAsFixed(2)}',
+                            s.outstandingBalance.toIQD(),
                             style: AppTheme.mono(
                               fontSize: 12,
                               color: s.outstandingBalance > 0 ? appColors.destructive : appColors.foreground,
@@ -285,7 +285,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                           key: 'volume',
                           header: context.tr('sup.col.volume'),
                           sortValue: (s) => s.totalPurchased,
-                          cellBuilder: (s) => Text('\$${s.totalPurchased.toStringAsFixed(2)}', style: AppTheme.mono(fontSize: 12)),
+                          cellBuilder: (s) => Text(s.totalPurchased.toIQD(), style: AppTheme.mono(fontSize: 12)),
                         ),
                         DataTableColumn(
                           key: 'rating',

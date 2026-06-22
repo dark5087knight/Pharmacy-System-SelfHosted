@@ -49,6 +49,11 @@ class Medicine(Base, TimeStampedMixin, SoftDeleteMixin):
     dosage = Column(String(255))
     storage = Column(String(255))
     image_url = Column(String)
+    company = Column(String(255))
+    indication = Column(JSONB, nullable=False, default=list)
+    dose = Column(String(255))
+    small_unit = Column(String(100))
+    equivalency = Column(Integer)
     created_by = Column(UUID(as_uuid=True), ForeignKey("staff.id"))
     updated_by = Column(UUID(as_uuid=True), ForeignKey("staff.id"))
 

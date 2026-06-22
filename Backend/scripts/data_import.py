@@ -96,6 +96,14 @@ async def migrate_data():
                     if "supplier_id" in r.keys() and r["supplier_id"]:
                         supplier_id = to_uuid(str(r["supplier_id"]), "supplier")
 
+                    import json
+                    indication_val = []
+                    if "indication" in r.keys() and r["indication"]:
+                        try:
+                            indication_val = json.loads(r["indication"])
+                        except Exception:
+                            indication_val = [r["indication"]] if isinstance(r["indication"], str) else r["indication"]
+
                     db_med = Medicine(
                         id=med_uuid,
                         tenant_id=tenant_id,
@@ -110,6 +118,11 @@ async def migrate_data():
                         purchase_price=r["purchasePrice"] if "purchasePrice" in r.keys() else r.get("purchase_price", 0.0),
                         selling_price=r["sellingPrice"] if "sellingPrice" in r.keys() else r.get("selling_price", 0.0),
                         supplier_id=supplier_id,
+                        company=r["company"] if "company" in r.keys() else None,
+                        indication=indication_val,
+                        dose=r["dose"] if "dose" in r.keys() else None,
+                        small_unit=r["smallUnit"] if "smallUnit" in r.keys() else r.get("small_unit", None),
+                        equivalency=r["equivalency"] if "equivalency" in r.keys() else None,
                         status="active"
                     )
                     pg_db.add(db_med)

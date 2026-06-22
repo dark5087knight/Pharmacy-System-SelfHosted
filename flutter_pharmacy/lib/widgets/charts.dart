@@ -119,7 +119,7 @@ class MonoArea extends StatelessWidget {
               getTooltipItems: (touchedSpots) {
                 return touchedSpots.map((s) {
                   return LineTooltipItem(
-                    '${data[s.spotIndex][xKey]}: \$${s.y.toStringAsFixed(2)}',
+                    '${data[s.spotIndex][xKey]}: ${s.y.toIQD()}',
                     TextStyle(color: appColors.foreground, fontSize: 11, fontWeight: FontWeight.bold),
                   );
                 }).toList();
@@ -247,7 +247,7 @@ class MonoLine extends StatelessWidget {
                 return touchedSpots.map((s) {
                   final label = lines[s.barIndex]['label'] ?? lines[s.barIndex]['key'];
                   return LineTooltipItem(
-                    '$label: \$${s.y.toStringAsFixed(2)}',
+                    '$label: ${s.y.toIQD()}',
                     TextStyle(color: lineShades[s.barIndex % lineShades.length], fontSize: 11, fontWeight: FontWeight.bold),
                   );
                 }).toList();

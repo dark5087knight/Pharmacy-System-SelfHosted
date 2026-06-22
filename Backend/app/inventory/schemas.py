@@ -22,30 +22,35 @@ class MedicineBase(CamelModel):
     generic_name: str
     brand: str
     category: str  # Category name (mapped to category_id on write)
-    barcode: str
-    sku: str
-    batch_number: str
-    manufacture_date: str
-    expiry_date: str
+    barcode: Optional[str] = None
+    sku: Optional[str] = None
+    batch_number: Optional[str] = None
+    manufacture_date: Optional[str] = None
+    expiry_date: Optional[str] = None
     quantity: int
-    unit: str
+    unit: Optional[str] = None
     purchase_price: float
     selling_price: float
     discount: float
     tax_rate: float
     low_stock_threshold: Optional[int] = 10
     location: LocationSchema
-    status: str
+    status: Optional[str] = None
     controlled: bool
     prescription_required: bool
     is_pinned: Optional[bool] = False
-    supplier_id: str
-    description: str
-    side_effects: List[str]
-    interactions: List[str]
-    dosage: str
-    storage: str
+    supplier_id: Optional[str] = None
+    description: Optional[str] = None
+    side_effects: Optional[List[str]] = []
+    interactions: Optional[List[str]] = []
+    dosage: Optional[str] = None
+    storage: Optional[str] = None
     image_url: Optional[str] = None
+    company: Optional[str] = None
+    indication: Optional[List[str]] = []
+    dose: Optional[str] = None
+    small_unit: Optional[str] = None
+    equivalency: Optional[int] = None
 
 class MedicineCreate(MedicineBase):
     id: str

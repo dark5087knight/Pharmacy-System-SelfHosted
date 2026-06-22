@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,7 +13,12 @@ class ApiService {
   factory ApiService() => _instance;
 
   String backendUrl = '';
-  final File _configFile = File('config.yaml');
+  String? _apiKey;
+
+  File get _configFile {
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
+    return File('$exeDir/config.yaml');
+  }
 
   Uri _apiUri(String path) {
     if (backendUrl.isEmpty) {
@@ -40,15 +46,36 @@ class ApiService {
               .replaceAll('"', '')
               .replaceAll("'", "");
         }
+
+        final RegExp keyExp = RegExp(r'api_key:\s*(.+)');
+        final keyMatch = keyExp.firstMatch(content);
+        if (keyMatch != null) {
+          _apiKey = keyMatch
+              .group(1)!
+              .trim()
+              .replaceAll('"', '')
+              .replaceAll("'", "");
+        } else {
+          _apiKey = _generateApiKey();
+          final updatedContent = '${content.trim()}\napi_key: "$_apiKey"\n';
+          await file.writeAsString(updatedContent);
+        }
       } catch (e) {
         // Ignore, leave as empty
       }
     } else {
-      await file.writeAsString('backend_url: ""\n');
+      _apiKey = _generateApiKey();
+      await file.writeAsString('backend_url: ""\napi_key: "$_apiKey"\n');
     }
 
     final prefs = await SharedPreferences.getInstance();
     _sessionCookie = prefs.getString('session_cookie');
+  }
+
+  String _generateApiKey() {
+    final random = Random();
+    final parts = List.generate(4, (_) => random.nextInt(0xffffffff).toRadixString(16).padLeft(8, '0'));
+    return parts.join('-');
   }
 
   Future<bool> testConnection(String url) async {
@@ -60,7 +87,7 @@ class ApiService {
       // Hit the health endpoint to verify server is alive without triggering 401 errors
       await http
           .get(Uri.parse('$cleanUrl/health'))
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 10));
       return true;
     } catch (e) {
       return false;
@@ -75,7 +102,7 @@ class ApiService {
           : url;
       final response = await http
           .get(Uri.parse('$cleanUrl/auth/info'))
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
@@ -130,6 +157,7 @@ class ApiService {
         if (_sessionCookie != null)
           'authorization':
               'Bearer ${_sessionCookie!.replaceFirst('session_id=', '')}',
+        'X-API-Key': ?_apiKey,
       };
 
       if (method == 'POST') {
@@ -167,17 +195,18 @@ class ApiService {
         if (_sessionCookie != null)
           'authorization':
               'Bearer ${_sessionCookie!.replaceFirst('session_id=', '')}',
+        'X-API-Key': ?_apiKey,
       };
 
       final http.Response response;
       if (body != null) {
         response = await http
             .post(url, headers: headers, body: jsonEncode(body))
-            .timeout(const Duration(seconds: 5));
+            .timeout(const Duration(seconds: 30));
       } else {
         response = await http
             .get(url, headers: headers)
-            .timeout(const Duration(seconds: 5));
+            .timeout(const Duration(seconds: 30));
       }
 
       // Capture cookie from response headers
@@ -231,6 +260,10 @@ class ApiService {
             'pendingOrders': map['pendingOrders'],
           }
           as T;
+    }
+
+    if (resource == 'categories') {
+      return (decoded as List).cast<String>() as T;
     }
 
     if (resource == 'medicines') {
@@ -320,7 +353,7 @@ class ApiService {
         method,
         endpoint,
         body: body,
-      ).timeout(const Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 30));
       if (response.statusCode >= 300) {
         throw Exception('Mutation failed: ${response.statusCode}');
       }
@@ -623,10 +656,13 @@ class ApiService {
       response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': ?_apiKey,
+            },
             body: jsonEncode({'username': username, 'password': password}),
           )
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 15));
     } catch (e) {
       throw Exception('Network Error: Could not reach the backend.');
     }
@@ -672,9 +708,12 @@ class ApiService {
         headers['authorization'] =
             'Bearer ${_sessionCookie!.replaceFirst('session_id=', '')}';
       }
+      if (_apiKey != null) {
+        headers['X-API-Key'] = _apiKey!;
+      }
       await http
           .post(url, headers: headers)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 10));
     } catch (e) {
       debugPrint('Logout network call failed: $e');
     } finally {
@@ -699,10 +738,13 @@ class ApiService {
       headers['cookie'] = _sessionCookie!;
       headers['authorization'] =
           'Bearer ${_sessionCookie!.replaceFirst('session_id=', '')}';
+      if (_apiKey != null) {
+        headers['X-API-Key'] = _apiKey!;
+      }
 
       final response = await http
           .get(url, headers: headers)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await SyncService().saveCache('/auth/me', data);
@@ -722,6 +764,59 @@ class ApiService {
         return StaffMember.fromJson(cachedData);
       }
       return null;
+    }
+  }
+
+  /// Downloads the backup JSON file and returns the raw bytes
+  Future<List<int>> downloadBackup() async {
+    final url = _apiUri('backup/export');
+    final Map<String, String> headers = {
+      'cookie': ?_sessionCookie,
+      if (_sessionCookie != null)
+        'authorization': 'Bearer ${_sessionCookie!.replaceFirst('session_id=', '')}',
+      'X-API-Key': ?_apiKey,
+    };
+    
+    final response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    } else {
+      throw Exception('Failed to download backup: ${response.statusCode} - ${response.body}');
+    }
+  }
+
+  /// Uploads a backup JSON file to restore the database
+  Future<void> restoreBackup(File backupFile) async {
+    final url = _apiUri('backup/import');
+    
+    final request = http.MultipartRequest('POST', url);
+    
+    // Add headers
+    if (_sessionCookie != null) {
+      request.headers['cookie'] = _sessionCookie!;
+      request.headers['authorization'] = 'Bearer ${_sessionCookie!.replaceFirst('session_id=', '')}';
+    }
+    if (_apiKey != null) {
+      request.headers['X-API-Key'] = _apiKey!;
+    }
+    
+    // Add file
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        backupFile.path,
+      ),
+    );
+    
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    
+    if (response.statusCode != 200) {
+      final decoded = jsonDecode(response.body);
+      final msg = decoded is Map && decoded.containsKey('detail')
+          ? decoded['detail']
+          : 'Failed to restore backup.';
+      throw Exception(msg);
     }
   }
 }

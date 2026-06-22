@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../providers/workspace_provider.dart';
 import '../services/api_service.dart';
 import '../models/models.dart';
@@ -31,6 +31,7 @@ class _CommandPaletteState extends State<CommandPalette> {
     {'id': 'finance', 'label': 'Finance OS', 'icon': LucideIcons.wallet},
     {'id': 'reports', 'label': 'Reports Center', 'icon': LucideIcons.barChart2},
     {'id': 'notifications', 'label': 'Inbox Notifications', 'icon': LucideIcons.bell},
+    {'id': 'activities', 'label': 'System Activities', 'icon': LucideIcons.history},
     {'id': 'settings', 'label': 'OS Settings', 'icon': LucideIcons.settings},
   ];
 
@@ -75,10 +76,10 @@ class _CommandPaletteState extends State<CommandPalette> {
       final id = m['id'] as String;
       if (role == 'admin') return true;
       if (role == 'manager') {
-        return const ['dashboard', 'inventory', 'pos', 'prescriptions', 'warehouse', 'suppliers', 'reports', 'notifications'].contains(id);
+        return const ['dashboard', 'inventory', 'pos', 'prescriptions', 'warehouse', 'suppliers', 'reports', 'notifications', 'activities'].contains(id);
       }
       if (role == 'pharmacist') {
-        return const ['dashboard', 'inventory', 'pos', 'prescriptions', 'warehouse', 'notifications'].contains(id);
+        return const ['dashboard', 'inventory', 'pos', 'prescriptions', 'warehouse', 'notifications', 'activities'].contains(id);
       }
       if (role == 'cashier') {
         return const ['pos', 'notifications'].contains(id);

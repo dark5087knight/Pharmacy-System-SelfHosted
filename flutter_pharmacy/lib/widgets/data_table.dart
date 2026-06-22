@@ -31,6 +31,7 @@ class DataTableWidget<T> extends StatefulWidget {
   final void Function(List<T> selectedItems)? onBulkDelete;
   final void Function(List<T> selectedItems)? onBulkEdit;
   final bool hideRowActions;
+  final void Function(String query)? onSearchChanged;
 
   const DataTableWidget({
     super.key,
@@ -45,6 +46,7 @@ class DataTableWidget<T> extends StatefulWidget {
     this.onBulkDelete,
     this.onBulkEdit,
     this.hideRowActions = true,
+    this.onSearchChanged,
   });
 
   @override
@@ -137,7 +139,12 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
                     height: 32,
                     child: TextField(
                       controller: _searchController,
-                      onChanged: (val) => setState(() => _searchQuery = val),
+                      onChanged: (val) {
+                        setState(() => _searchQuery = val);
+                        if (widget.onSearchChanged != null) {
+                          widget.onSearchChanged!(val);
+                        }
+                      },
                       style: const TextStyle(fontSize: 12),
                       decoration: InputDecoration(
                         fillColor: appColors.background,

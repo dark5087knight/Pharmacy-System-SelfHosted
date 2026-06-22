@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:file_picker/file_picker.dart';
@@ -34,6 +35,7 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
   String _searchQuery = '';
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
+  Timer? _debounce;
   
   // Active tab on narrow screens
   int _activePosTab = 0;
@@ -50,9 +52,24 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final meds = await _db.request<List<Medicine>>('medicines?q=${Uri.encodeComponent(query)}');
+        if (mounted) {
+          setState(() {
+            _medicines = meds;
+          });
+        }
+      } catch (_) {}
+    });
   }
 
   void _loadCartWidth() async {
@@ -333,7 +350,7 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(context.tr('pos.dialog.total'), style: const TextStyle(fontSize: 12)),
-                      Text('\$${totalVal.toStringAsFixed(2)}', style: AppTheme.mono(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text(totalVal.toIQD(), style: AppTheme.mono(fontSize: 12, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -342,7 +359,7 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                     children: [
                       Text(context.tr('pos.dialog.change'), style: const TextStyle(fontSize: 12)),
                       Text(
-                        change >= 0 ? '\$${change.toStringAsFixed(2)}' : '\$0.00',
+                        change >= 0 ? change.toIQD() : '0 IQD',
                         style: AppTheme.mono(fontSize: 12, color: change >= 0 ? appColors.success : appColors.destructive, fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -543,7 +560,7 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                             final heldTotal = workspace.posHeldCarts[idx].fold<double>(0, (s, x) => s + x.unitPrice * x.quantity);
                             return PopupMenuItem(
                               value: idx,
-                              child: Text('${context.tr('pos.suspend')} #${idx + 1} (${workspace.posHeldCarts[idx].length} - \$${heldTotal.toStringAsFixed(2)})'),
+                              child: Text('${context.tr('pos.suspend')} #${idx + 1} (${workspace.posHeldCarts[idx].length} - ${heldTotal.toIQD()})'),
                             );
                           });
                         },
@@ -560,7 +577,10 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                 child: TextField(
                   controller: _searchController,
                   focusNode: _searchFocusNode,
-                  onChanged: (val) => setState(() => _searchQuery = val),
+                  onChanged: (val) {
+                    setState(() => _searchQuery = val);
+                    _onSearchChanged(val);
+                  },
                   onSubmitted: (val) async {
                     final code = val.trim();
                     if (code.isEmpty) return;
@@ -571,6 +591,8 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                     } catch (_) {
                       matchedMed = await ApiService().lookupByBarcode(code);
                     }
+
+                    if (!context.mounted) return;
 
                     if (matchedMed != null) {
                       workspace.addToPosCart(matchedMed, context);
@@ -677,7 +699,7 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  '\$${m.sellingPrice.toStringAsFixed(2)}',
+                                  m.sellingPrice.toIQD(),
                                   style: AppTheme.mono(fontSize: 12, fontWeight: FontWeight.bold),
                                 ),
                                 Text(
@@ -760,7 +782,7 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          '\$${it.unitPrice.toStringAsFixed(2)} ${context.tr('pos.each')}',
+                                          '${it.unitPrice.toIQD()} ${context.tr('pos.each')}',
                                           style: TextStyle(fontSize: 11, color: appColors.mutedForeground),
                                         ),
                                       ],
@@ -801,7 +823,7 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '\$${(it.unitPrice * it.quantity).toStringAsFixed(2)}',
+                                    (it.unitPrice * it.quantity).toIQD(),
                                     style: AppTheme.mono(fontSize: 12, fontWeight: FontWeight.bold),
                                   ),
                                   IconButton(
@@ -827,11 +849,11 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _sumRow(context.tr('pos.subtotal'), '\$${subtotal.toStringAsFixed(2)}', appColors),
-                      _sumRow(context.tr('pos.discount'), '-\$${discount.toStringAsFixed(2)}', appColors),
-                      _sumRow(context.tr('pos.tax'), '+\$${tax.toStringAsFixed(2)}', appColors),
+                      _sumRow(context.tr('pos.subtotal'), subtotal.toIQD(), appColors),
+                      _sumRow(context.tr('pos.discount'), '-${discount.toIQD()}', appColors),
+                      _sumRow(context.tr('pos.tax'), '+${tax.toIQD()}', appColors),
                       const Divider(),
-                      _sumRow(context.tr('pos.total'), '\$${total.toStringAsFixed(2)}', appColors, isBold: true),
+                      _sumRow(context.tr('pos.total'), total.toIQD(), appColors, isBold: true),
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -1081,8 +1103,8 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                     data: sale.items.map((it) => [
                       it.name,
                       it.quantity.toString(),
-                      '\$${it.unitPrice.toStringAsFixed(2)}',
-                      '\$${(it.quantity * it.unitPrice).toStringAsFixed(2)}',
+                      it.unitPrice.toIQD(),
+                      (it.quantity * it.unitPrice).toIQD(),
                     ]).toList(),
                   ),
                   pw.Divider(thickness: 0.5),
@@ -1093,9 +1115,9 @@ class _PointOfSaleScreenState extends State<PointOfSaleScreen> {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
-                        pw.Text('Subtotal: \$${sale.subtotal.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 8)),
-                        pw.Text('Tax: \$${sale.tax.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 8)),
-                        pw.Text('Total: \$${sale.total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                        pw.Text('Subtotal: ${sale.subtotal.toIQD()}', style: const pw.TextStyle(fontSize: 8)),
+                        pw.Text('Tax: ${sale.tax.toIQD()}', style: const pw.TextStyle(fontSize: 8)),
+                        pw.Text('Total: ${sale.total.toIQD()}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
                       ],
                     ),
                   ),

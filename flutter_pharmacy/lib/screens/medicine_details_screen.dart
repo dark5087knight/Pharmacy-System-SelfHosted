@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import '../providers/workspace_provider.dart';
 import '../services/api_service.dart';
@@ -46,6 +46,11 @@ class _MedicineDetailsScreenState extends State<MedicineDetailsScreen> {
   final _storageController = TextEditingController();
   final _sideEffectsController = TextEditingController();
   final _interactionsController = TextEditingController();
+  final _companyController = TextEditingController();
+  final _indicationController = TextEditingController();
+  final _doseController = TextEditingController();
+  final _smallUnitController = TextEditingController();
+  final _equivalencyController = TextEditingController();
 
   String _selectedSupplierId = '';
   bool _controlled = false;
@@ -78,6 +83,11 @@ class _MedicineDetailsScreenState extends State<MedicineDetailsScreen> {
     _storageController.dispose();
     _sideEffectsController.dispose();
     _interactionsController.dispose();
+    _companyController.dispose();
+    _indicationController.dispose();
+    _doseController.dispose();
+    _smallUnitController.dispose();
+    _equivalencyController.dispose();
     super.dispose();
   }
 
@@ -123,6 +133,11 @@ class _MedicineDetailsScreenState extends State<MedicineDetailsScreen> {
       _storageController.text = m.storage;
       _sideEffectsController.text = m.sideEffects.join(', ');
       _interactionsController.text = m.interactions.join(', ');
+      _companyController.text = m.company;
+      _indicationController.text = m.indication.join(', ');
+      _doseController.text = m.dose;
+      _smallUnitController.text = m.smallUnit;
+      _equivalencyController.text = m.equivalency?.toString() ?? '';
       _selectedSupplierId = m.supplierId;
       _controlled = m.controlled;
       _prescriptionRequired = m.prescriptionRequired;
@@ -159,6 +174,11 @@ class _MedicineDetailsScreenState extends State<MedicineDetailsScreen> {
         storage: _storageController.text.trim(),
         sideEffects: _sideEffectsController.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList(),
         interactions: _interactionsController.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList(),
+        company: _companyController.text.trim(),
+        indication: _indicationController.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList(),
+        dose: _doseController.text.trim(),
+        smallUnit: _smallUnitController.text.trim(),
+        equivalency: int.tryParse(_equivalencyController.text),
       );
 
       final db = ApiService();
@@ -309,6 +329,11 @@ class _MedicineDetailsScreenState extends State<MedicineDetailsScreen> {
                                   _row(context.tr('med_details.batch_code'), m.batchNumber, appColors, isMono: true),
                                   _row(context.tr('med_details.mfg'), DateFormat('yyyy-MM-dd').format(DateTime.parse(m.manufactureDate)), appColors, isMono: true),
                                   _row(context.tr('med_details.exp'), DateFormat('yyyy-MM-dd').format(DateTime.parse(m.expiryDate)), appColors, isMono: true),
+                                  _row('Company', m.company, appColors),
+                                  _row('Indication', m.indication.join(', '), appColors),
+                                  _row('Dose', m.dose, appColors),
+                                  _row('Small Unit', m.smallUnit, appColors),
+                                  _row('Equivalency', m.equivalency?.toString() ?? '—', appColors),
                                 ],
                               ),
                             ),
@@ -366,8 +391,8 @@ class _MedicineDetailsScreenState extends State<MedicineDetailsScreen> {
                               title: context.tr('med_details.card.finance'),
                               children: Column(
                                 children: [
-                                  _row(context.tr('med_details.buy'), '\$${m.purchasePrice.toStringAsFixed(2)}', appColors, isMono: true),
-                                  _row(context.tr('med_details.sell'), '\$${m.sellingPrice.toStringAsFixed(2)}', appColors, isMono: true),
+                                  _row(context.tr('med_details.buy'), m.purchasePrice.toIQD(), appColors, isMono: true),
+                                  _row(context.tr('med_details.sell'), m.sellingPrice.toIQD(), appColors, isMono: true),
                                   _row(context.tr('med_details.margin'), '$margin%', appColors, isMono: true),
                                   _row(context.tr('med_details.discounts'), '${m.discount.toStringAsFixed(0)}%', appColors, isMono: true),
                                   _row(context.tr('med_details.tax'), '${m.taxRate.toStringAsFixed(0)}%', appColors, isMono: true),
@@ -478,10 +503,15 @@ class _MedicineDetailsScreenState extends State<MedicineDetailsScreen> {
                           _buildField('Stock Qty', _qtyController, number: true),
                           _buildField('Unit (e.g. tablet)', _unitController, required: true),
                           _buildField('Low Threshold Warning', _thresholdController, number: true),
-                          _buildField('Purchase Cost (\$)', _buyPriceController, number: true),
-                          _buildField('Retail Selling Price (\$)', _sellPriceController, number: true),
+                          _buildField('Purchase Cost (IQD)', _buyPriceController, number: true),
+                          _buildField('Retail Selling Price (IQD)', _sellPriceController, number: true),
                           _buildDatePickerField('Manufacture Date', _mfgController, required: true),
                           _buildDatePickerField('Expiry Date', _expiryController, required: true),
+                          _buildField('Company', _companyController),
+                          _buildField('Indication (comma-separated)', _indicationController),
+                          _buildField('Dose', _doseController),
+                          _buildField('Small Unit', _smallUnitController),
+                          _buildField('Equivalency', _equivalencyController, number: true),
                           
                           // Controlled / Rx checkboxes
                           SwitchListTile(

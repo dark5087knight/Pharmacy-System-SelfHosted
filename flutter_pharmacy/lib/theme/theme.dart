@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 class AppColors extends ThemeExtension<AppColors> {
   final Color background;
@@ -200,3 +201,11 @@ class AppTheme {
     );
   }
 }
+
+extension CurrencyFormatter on num {
+  String toIQD() {
+    final format = NumberFormat("#,##0", "en_US");
+    return "${format.format(this)} IQD";
+  }
+}
+
